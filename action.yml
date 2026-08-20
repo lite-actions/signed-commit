@@ -1,0 +1,74 @@
+name: Signed Commit Lite
+description: >-
+  Create a commit that GitHub signs, without a signing key on the runner, in
+  pure shell.
+author: lite-actions
+
+branding:
+  icon: edit-3
+  color: blue
+
+inputs:
+  branch:
+    description: Branch to commit to.
+    required: true
+  message:
+    description: >-
+      Commit message. The first line is the headline; anything after the first
+      blank line becomes the body.
+    required: true
+  files:
+    description: >-
+      Newline-separated paths to add or update, read from the working tree.
+      Binary files are fine.
+    required: false
+    default: ""
+  deleted-files:
+    description: Newline-separated paths to delete.
+    required: false
+    default: ""
+  create-branch:
+    description: Create the branch from `base-sha` before committing.
+    required: false
+    default: "false"
+  base-sha:
+    description: Commit to branch from when `create-branch` is true.
+    required: false
+    default: ${{ github.sha }}
+  expected-head-oid:
+    description: >-
+      Refuse the commit unless the branch tip is this SHA. Defaults to the
+      branch's current tip, read at run time.
+    required: false
+    default: ""
+  repository:
+    description: Repository to commit to, as `owner/repo`.
+    required: false
+    default: ${{ github.repository }}
+  token:
+    description: >-
+      Token used for the API call. Needs contents write on the repository.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  commit-sha:
+    description: SHA of the commit that was created.
+    value: ${{ steps.commit.outputs.commit-sha }}
+
+runs:
+  using: composite
+  steps:
+    - id: commit
+      shell: bash
+      env:
+        INPUT_BRANCH: ${{ inputs.branch }}
+        INPUT_MESSAGE: ${{ inputs.message }}
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_DELETED_FILES: ${{ inputs.deleted-files }}
+        INPUT_CREATE_BRANCH: ${{ inputs.create-branch }}
+        INPUT_BASE_SHA: ${{ inputs.base-sha }}
+        INPUT_EXPECTED_HEAD_OID: ${{ inputs.expected-head-oid }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: bash "${GITHUB_ACTION_PATH}/scripts/commit.sh"
