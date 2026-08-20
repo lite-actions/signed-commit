@@ -1,0 +1,27 @@
+name: Lint
+
+# Shellcheck the action's scripts on every PR and on pushes to main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: lite-actions/git-checkout@v1
+
+      - name: ShellCheck scripts
+        run: |
+          # shellcheck ships on the ubuntu runner images, so there is nothing
+          # to install. The apt-get that used to be here could hang
+          # indefinitely on an unresponsive mirror, and because lint is a
+          # required check that blocks the PR rather than failing it.
+          # -x follows sourced files; warning severity ignores info/style noise
+          # (e.g. dynamic source paths shellcheck can't resolve statically).
+          shellcheck -x --severity=warning scripts/*.sh tests/*.sh

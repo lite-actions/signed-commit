@@ -1,0 +1,31 @@
+name: Conventional Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: lite-actions/git-checkout@v1
+        with:
+          fetch-depth: 0
+
+      # Dependabot's branch/commit naming is bot-controlled and can't follow the
+      # conventional-branch spec; skip validation for it but still report the
+      # (required) check as passing.
+      - name: Skip for Dependabot
+        if: github.actor == 'dependabot[bot]'
+        run: echo "Dependabot PR — conventional validation skipped."
+
+      # Dogfood the action from this repo (local reference). The commit range
+      # comes from the pull_request event, so no base-ref is needed.
+      - name: Validate conventional commits & branch
+        if: github.actor != 'dependabot[bot]'
+        uses: lite-actions/conventional-validator@v1
+        with:
+          validate-commits: "true"
+          validate-branch: "true"
+          validate-body: "true"
