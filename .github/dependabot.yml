@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Conventional prefix so the bump commits read cleanly in CHANGELOG.md.
+    # Dependabot's branch names cannot satisfy the Conventional Branch spec, so
+    # conventional validation skips that actor and reports the check as passing.
+    commit-message:
+      prefix: "chore(deps)"

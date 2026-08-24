@@ -1,6 +1,6 @@
-name: Release
+name: Publish
 
-# Manual release for the action: generate notes from BREAKING/feat/fix commits
+# Manual publish for the action: generate notes from BREAKING/feat/fix commits
 # since the last release, tag vX.Y.Z, move the vN major tag, and publish a
 # GitHub Release. Tags are not branch-protected, so no PR/approval dance needed.
 on:
@@ -23,15 +23,15 @@ permissions:
   contents: write
 
 concurrency:
-  group: release
+  group: publish
   cancel-in-progress: false
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: lite-actions/git-checkout@v1
+        uses: lite-actions/git-checkout@90733d329cd6c632c7597660341002e1a1377c44 # v1.1.0
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -44,8 +44,29 @@ jobs:
           to: ${{ github.event.inputs.to }}
           version: ${{ github.event.inputs.version }}
 
+      # Decide from the notes themselves whether there is anything to release.
+      # Matches the section headings, not the "_No user-facing changes ..._"
+      # sentence: the headings are a tested contract in release-notes, and
+      # matching them fails closed - anything unrecognised stops the release.
+      - name: Check the notes for releasable content
+        id: gate
+        shell: bash
+        env:
+          NOTES_FILE: ${{ steps.notes.outputs.file }}
+        run: |
+          set -euo pipefail
+          if [ ! -f "${NOTES_FILE}" ]; then
+            echo "::error::release-notes produced no file at '${NOTES_FILE}'."
+            exit 1
+          fi
+          if grep -qE '^(\*\*⚠ BREAKING CHANGES\*\*|### Features|### Fixes)$' "${NOTES_FILE}"; then
+            echo "release=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "release=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Tag, move major tag, and publish release
-        if: steps.notes.outputs.changed == 'true'
+        if: steps.gate.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.notes.outputs.version }}
@@ -63,3 +84,15 @@ jobs:
           git push origin -f "${major}"
           # The generated notes file is the GitHub Release body.
           gh release create "${tag}" --title "${VERSION}" --notes-file "${NOTES_FILE}"
+
+      - name: No release changes
+        if: steps.gate.outputs.release != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::notice title=NO RELEASE CHANGES::No BREAKING / feat / fix commits since the last release; nothing was tagged or released."
+          {
+            echo "## NO RELEASE CHANGES"
+            echo
+            echo "No BREAKING / feat / fix commits since the last release."
+          } >> "${GITHUB_STEP_SUMMARY}"
